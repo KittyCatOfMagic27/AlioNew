@@ -1,0 +1,168 @@
+;;def ALIO_ALIO_COMPILER_TOKENS
+;;ifndef ALIO_ALIO_COMPILER_TOKENS
+
+;;include static <memory>
+;;include static <dynamic_string>
+;;include static <string_util>
+
+;;define TK_TYPE_ERROR 0
+;;define TK_TYPE_VALUE 1
+
+;;define TK_TYPE_LIT_NUMBER 2
+;;define TK_TYPE_LIT_BOOLEAN 3
+;;define TK_TYPE_LIT_STRING 4
+
+;;define TK_TYPE_UINT 10
+;;define TK_TYPE_PTR 11
+;;define TK_TYPE_INT 12
+;;define TK_TYPE_CHAR 13
+;;define TK_TYPE_BOOL 14
+;;define TK_TYPE_LONG 15
+;;define TK_TYPE_STRING 16
+;;define TK_TYPE_STRUCT 17
+;;define TK_TYPE_SHORT 18
+;;define TK_TYPE_TYPED_PTR 19
+
+;;define TK_TYPE_OP_ADD 25
+;;define TK_TYPE_OP_SUB 26
+;;define TK_TYPE_OP_MULT 27
+;;define TK_TYPE_OP_DIV 28
+;;define TK_TYPE_OP_MOD 29
+
+;;define TK_TYPE_KEYWORD 40
+
+;;define TK_TYPE_DEF_UINT 60
+;;define TK_TYPE_DEF_PTR 61
+;;define TK_TYPE_DEF_INT 62
+;;define TK_TYPE_DEF_CHAR 63
+;;define TK_TYPE_DEF_BOOL 64
+;;define TK_TYPE_DEF_LONG 65
+;;define TK_TYPE_DEF_STRING 66
+;;define TK_TYPE_DEF_STRUCT 67
+;;define TK_TYPE_DEF_SHORT 68
+;;define TK_TYPE_DEF_TYPED_PTR 69  # nice
+
+;;include static "token_map.alio"
+
+struct Token
+begin
+    uint type  # of the TK_TYPE enum
+    ptr __dstr 
+end 
+
+proc Token::init
+begin
+    uint prot PROT_READ | PROT_WRITE
+    uint flags MAP_PRIVATE | MAP_ANONYMOUS
+    ptr addr mmap(0 20 prot flags 0 0) # assign size of dynamic_string struct
+    ptr(Token) __self self
+    __self->__dstr addr
+end
+
+proc Token::assignDstr
+in ptr __dstr 
+begin
+    dynamic_string dstr
+    dstr @__dstr
+    ptr(Token) __self self
+    ptr(dynamic_string) __dstrtyped __self->__dstr
+    __dstrtyped->data dstr.data
+    __dstrtyped->length dstr.length
+    __dstrtyped->size dstr.size
+    __dstrtyped->size_step dstr.size_step
+end
+
+proc Token::free
+begin
+    ptr(Token) __self self
+    ptr __dstr __self->__dstr
+    dynamic_string dstr
+    dstr @__dstr
+    dstr.free()
+    munmap(__dstr 20) # unmap size of dynamic_string struct
+end
+
+proc idToken
+in ptr __dstr
+out uint type
+begin
+    type 0
+    dynamic_string dstr
+    dstr @__dstr
+    long bigzero 0
+    int i 0
+    TK_MAP_PAIR tkmappair 
+    ptr __retstr getIndexOfTokenMap(i)
+    tkmappair @__retstr
+    bool isMatch 0
+    bool contcon __retstr != bigzero
+
+    # check if it is a keyword
+    while(contcon)
+        ptr(TK_MAP_PAIR) __tkmappair &tkmappair
+        ptr str __tkmappair->str
+        isMatch strcmp(dstr.data str)
+        i++
+        if(isMatch)
+            type tkmappair.type
+        end
+        __retstr getIndexOfTokenMap(i)
+        contcon __retstr != bigzero
+        if(isMatch)
+            contcon 0
+        end
+        if(contcon)
+            tkmappair @__retstr
+        end
+    end 
+
+    # if its not a keyword check if its a literal
+    if(type = 0)
+        bool isNumber str_is_number(dstr.data)
+        if(isNumber)
+            type TK_TYPE_LIT_NUMBER
+        end
+    end
+
+    # if its not any of that label it as a value
+    if(type = 0)
+        type TK_TYPE_VALUE
+    end
+end
+
+# get the next token to be processed 
+proc getNextToken
+in ptr endOfFile 
+in ptr __str
+out ptr __tk  # ptr(Token)
+begin
+    dynamic_string dstr
+    dstr.init(1 4)
+
+    ptr str @__str
+    char c @str
+    bool contcon str != endOfFile
+    bool contcontemp c != " "
+    contcon contcon && contcontemp
+    while(contcon)
+        dstr.appendbyte(c)
+        str++
+        c @str
+        contcon str != endOfFile
+        contcontemp c != " "
+        contcon contcon && contcontemp
+    end
+    str++
+
+    uint type idToken(&dstr)
+    
+    @__str str
+
+    Token tk
+    tk.init()
+    tk.assignDstr(&dstr)
+
+    __tk &tk
+end
+
+;;fi

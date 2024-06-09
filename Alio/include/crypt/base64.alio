@@ -1,0 +1,334 @@
+# ***DOCU*** NAME: BASE64 \
+# ***DOCU*** ABRV: crypt/base64 \
+# ***DOCU*** DESC: Provides the base64 encoding algorithm \
+# ***DOCU*** DEPENDS: stdlib \
+
+;;ifndef ALIO_CRYPT_BASE64
+;;def ALIO_CRYPT_BASE64
+
+;;include static <stdlib>
+
+#
+# Base64 encoding/decoding (RFC1341)
+# Copyright (c) 2005-2011, Jouni Malinen <j@w1.fi>
+#
+# This software may be distributed under the terms of the BSD license.
+# See README for more details.             #kat(alioDev) - not available, sorry!
+#
+
+# 6/4/2024 - kat(alioDev) - Translated from C++ to Alio 
+
+proc __base64_ARR8_INDEX
+in ptr arr
+in uint index
+out char x 
+begin
+    arr arr + index
+    x @arr
+end
+
+proc __base64_ARR8_INDEXOF
+in ptr arr
+in char c
+out bool index
+begin
+    index 0
+    char cv @arr
+    while(cv != c)
+        arr++
+        index++
+        cv @arr
+    end
+end
+
+proc base64
+in ptr input
+in ptr wbuffer
+in uint length
+in uint bufferLength
+begin
+    # checking if given buffer is big enough
+    uint olength length + 2
+    olength olength * 4
+    olength olength / 3
+    if(olength > bufferLength)
+        static string errmsg "(base64) Not enough space in write buffer :(\nYou need this many bytes: "
+        prints(STDERR errmsg)
+        printi(STDERR olength)
+        printc(STDERR 10)
+        SYS_exit(NEGONE)
+    end
+
+    static string b64table "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    ptr endptr input + length 
+    ptr inptr input
+    ptr pos wbuffer
+
+    long x endptr - inptr
+    bool contcon x >= 3
+    while(contcon > 0)
+        bool byte 0
+        bool temp0 0
+        bool temp1 0
+        bool temp2 0
+        uint index 0
+
+        byte @inptr
+        byte byte >> 2
+        index byte
+        temp0 __base64_ARR8_INDEX(b64table index)
+        @pos temp0 
+        pos++
+
+        byte @inptr
+        byte byte -& 0x03
+        byte byte << 4
+        temp0 __base64_ARR8_INDEX(inptr 1)
+        temp0 temp0 >> 4
+        index byte | temp0
+        temp0 __base64_ARR8_INDEX(b64table index)
+        @pos temp0 
+        pos++
+
+        byte __base64_ARR8_INDEX(inptr 1)
+        byte byte -& 0x0f
+        byte byte << 2
+        temp0 __base64_ARR8_INDEX(inptr 2)
+        temp0 temp0 >> 6
+        index byte | temp0
+        temp0 __base64_ARR8_INDEX(b64table index)
+        @pos temp0 
+        pos++
+
+        byte __base64_ARR8_INDEX(inptr 2)
+        byte byte -& 0x3f
+        index byte
+        temp0 __base64_ARR8_INDEX(b64table index)
+        @pos temp0 
+        pos++
+
+
+        inptr inptr + 3
+        x endptr - inptr
+        contcon x >= 3
+    end
+
+    contcon endptr - inptr
+    if(contcon)
+        byte @inptr
+        byte byte >> 2
+        index byte
+        temp0 __base64_ARR8_INDEX(b64table index)
+        @pos temp0 
+        pos++
+
+        if(contcon = 1)
+            byte @inptr
+            byte byte -& 0x03
+            byte byte << 4
+            index byte
+            temp0 __base64_ARR8_INDEX(b64table index)
+            @pos temp0
+            pos++
+
+            @pos "="
+            pos++
+        else
+            byte @inptr
+            byte byte -& 0x03
+            byte byte << 4
+            temp0 __base64_ARR8_INDEX(inptr 1)
+            temp0 temp0 >> 4
+            index byte | temp0
+            temp0 __base64_ARR8_INDEX(b64table index)
+            @pos temp0 
+            pos++
+
+            byte __base64_ARR8_INDEX(inptr 1)
+            byte byte -& 0x0f
+            byte byte << 2
+            index byte
+            temp0 __base64_ARR8_INDEX(b64table index)
+            @pos temp0 
+            pos++
+        end
+
+        @pos "="
+
+    end
+end
+
+# end of translated code
+
+# writing decode myself based off of the previous code bc i dont have internet and deleted the one i was actually using
+
+proc base64_decode
+in ptr input
+in ptr wbuffer
+in uint length
+in uint bufferLength
+begin
+    # checking if given buffer is big enough
+    uint olength length
+    olength olength * 3
+    olength olength / 4
+    if(olength > bufferLength)
+        static string errmsg "(base64_decode) Not enough space in write buffer :(\nYou need this many bytes: "
+        prints(STDERR errmsg)
+        printi(STDERR olength)
+        printc(STDERR 10)
+        SYS_exit(NEGONE)
+    end
+
+    static string b64table "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    ptr endptr input + length 
+    ptr inptr input
+    ptr pos wbuffer
+
+    long x endptr - inptr
+    bool contcon x > 0
+    bool tempcon __base64_ARR8_INDEX(inptr 3)
+    tempcon tempcon != "="
+    contcon tempcon -& contcon
+    while(contcon)
+        bool byte 0
+        bool temp0 0
+        bool temp1 0
+        bool temp2 0
+        uint index 0
+
+        # byte 1
+        byte @inptr
+        byte __base64_ARR8_INDEXOF(b64table byte)
+        byte byte << 2
+        temp0 __base64_ARR8_INDEX(inptr 1)
+        temp0 __base64_ARR8_INDEXOF(b64table temp0)
+        temp0 temp0 >> 4
+        temp0 temp0 -& 0x03
+        temp0 temp0 | byte
+        @pos temp0 
+        pos++
+
+        # byte 2
+        byte __base64_ARR8_INDEX(inptr 1)
+        byte __base64_ARR8_INDEXOF(b64table byte)
+        byte byte << 4 
+        temp0 __base64_ARR8_INDEX(inptr 2)
+        temp0 __base64_ARR8_INDEXOF(b64table temp0)
+        temp0 temp0 >> 2
+        temp0 temp0 | byte
+        @pos temp0 
+        pos++
+
+        # byte 3
+        byte __base64_ARR8_INDEX(inptr 2)
+        byte __base64_ARR8_INDEXOF(b64table byte)
+        byte byte << 6 
+        temp0 __base64_ARR8_INDEX(inptr 3)
+        temp0 __base64_ARR8_INDEXOF(b64table temp0)
+        temp0 temp0 | byte
+        @pos temp0 
+        pos++
+
+        inptr inptr + 4
+        x endptr - inptr
+        contcon x > 0
+        tempcon __base64_ARR8_INDEX(inptr 3)
+        tempcon tempcon != "="
+        contcon tempcon -& contcon
+    end
+
+    contcon __base64_ARR8_INDEX(inptr 3)
+    if(contcon = "=")
+        #byte 1
+        byte @inptr
+        byte __base64_ARR8_INDEXOF(b64table byte)
+        byte byte << 2
+        temp0 __base64_ARR8_INDEX(inptr 1)
+        temp0 __base64_ARR8_INDEXOF(b64table temp0)
+        temp0 temp0 >> 4
+        temp0 temp0 -& 0x03
+        temp0 temp0 | byte
+        @pos temp0 
+        pos++
+
+        contcon __base64_ARR8_INDEX(inptr 2)
+        if(contcon != "=")
+            #byte 2
+            byte __base64_ARR8_INDEX(inptr 1)
+            byte __base64_ARR8_INDEXOF(b64table byte)
+            byte byte << 4 
+            temp0 __base64_ARR8_INDEX(inptr 2)
+            temp0 __base64_ARR8_INDEXOF(b64table temp0)
+            temp0 temp0 >> 2
+            temp0 temp0 | byte
+            @pos temp0
+            pos++
+        end
+
+    end
+
+end
+
+proc __hexToBin4
+in char c
+out char outBits
+begin
+    if(c <= 57)
+        outBits c - 48
+    else if(c <= 70)
+        outBits c - 55
+    else
+        outBits c - 87
+    end
+end
+
+proc hexToBin
+in ptr input
+in ptr wbuffer
+in uint length
+in uint bufferLength
+begin
+    int i length
+    while(i)
+        char outC 0
+        char tempC 0
+        char c @input
+        char displayC 0
+        tempC __hexToBin4(c)
+        input++
+        c @input
+        c __hexToBin4(c)
+        input++
+
+        tempC tempC << 4
+        c c | tempC
+
+        #printhex8(STDOUT c)
+        #printc(STDOUT " ")
+
+        @wbuffer c
+        wbuffer++
+        i i - 2
+    end
+end
+
+proc hexToBase64
+in ptr input
+in ptr wbuffer
+in uint length
+in uint bufferLength
+begin
+    static string binaryOut[200]
+    hexToBin(input binaryOut length 200)
+
+    uint newlength length / 2
+    
+    printi(STDOUT bufferLength)
+    printc(STDOUT 10)
+    base64(binaryOut wbuffer newlength bufferLength)
+end
+
+;;fi

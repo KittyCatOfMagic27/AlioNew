@@ -1,0 +1,293 @@
+# ***DOCU*** NAME: SHA1 \
+# ***DOCU*** ABRV: crypt/SHA1 \
+# ***DOCU*** DESC: Provides the SHA-1 hashing algorithm. Secure Hashing Algorithm 1 (NO WORK)\
+# ***DOCU*** DEPENDS: stdlib math/endian bits\
+
+;;ifndef ALIO_CRYPT_SHA1
+;;def ALIO_CRYPT_SHA1
+
+;;include static <stdlib>
+;;include static <bits>
+;;include static <math/endian>
+
+
+# written based off of Wikipedia psuedocode (https://en.m.wikipedia.org/wiki/SHA-1)
+
+
+# Test value "The quick brown fox jumps over the lazy dog"
+# Output hex "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"
+# Output Base64 binary to ASCII "L9ThxnotKPzthJ7hu3bnORuT6xI="
+
+# Output hex when no input "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+
+
+
+# VERY BROKEN
+# IDFK WHATS WRONG 
+# currently comparing outputs with working sha1 in sha.txt
+
+# Things to fix:
+#           __SHA1_CHUNK d0 is an incorrect value 
+#           compiler shifts variables shifted, not only the output to be assigned
+
+
+
+
+proc __SHA1_ARRAY_INDEXING32
+in ptr p
+in uint index
+out uint y
+begin
+    p p + index
+    y @p
+end
+
+proc __SHA1_ADD32
+in uint x
+in uint y
+out uint z
+begin
+    x swapEndian32(x)
+    y swapEndian32(y)
+    z x + y
+    z swapEndian32(z)
+end
+
+proc printuAsS
+in uint x
+begin
+    ptr __x &x
+    SYS_write(STDOUT __y 4)
+    printc(STDOUT 10)
+end 
+
+proc __SHA1_CHUNK
+in ptr chunk
+begin 
+    # should be big endian
+    # array of 96 32bit uints
+    static string words[384]
+    ptr __words &words
+    ptr chunk0 chunk
+    int i 16
+    int x 0
+    while(i)
+        x @chunk0
+        @__words x
+        __words __words + 4
+        chunk0 chunk0 + 4
+        i--
+    end
+
+    i 16
+    while(i<80) # this is wrong, i dont know why but the d0 doesnt add up
+        uint index i - 3
+        uint d0 __SHA1_ARRAY_INDEXING32(chunk index)
+        index i - 8
+        uint d1 __SHA1_ARRAY_INDEXING32(chunk index)
+        index i - 14
+        uint d2 __SHA1_ARRAY_INDEXING32(chunk index)
+        index i - 16
+        uint d3 __SHA1_ARRAY_INDEXING32(chunk index)
+
+        d0 d0 ^ d1
+        d0 d0 ^ d2
+        d0 d0 ^ d3
+
+        d0 bitRotateLeft32(d0 1)
+
+        printuAsS(d0)
+
+        @__words d0
+        __words __words + 4
+        i++
+    end 
+end
+
+
+#all values on output should be in big-endian
+proc SHA1
+in ptr str
+out ptr strOut
+begin
+    bool endian checkEndian()
+    if(endian)
+        static string msg "Big Endian\nToo easy, no impentation :)\n" # this is a joke, I just need little endian 
+        #                                                                    so not doing this for right now
+        prints(STDOUT msg)
+    else 
+        #static string msg1 "little endian\n"
+        #prints(STDOUT msg1)
+        long ml 0
+        ml strlen(str)
+        ml ml*8
+        uint h0 swapEndian32(0x67452301)
+        uint h1 swapEndian32(0xEFCDAB89)
+        uint h2 swapEndian32(0x98BADCFE)
+        uint h3 swapEndian32(0x10325476)
+        uint h4 swapEndian32(0xC3D2E1F0)
+        static string buffer[256]
+        ptr __buffer &buffer
+
+        # FORMAT:
+        #   STRING
+        #   FILLER
+        #   0x80
+        #   ml
+
+        # make first block 56 bytes (append new zero'd bytes to front, last appended byte has to be 0x01)
+        #                                                       56 * 8 = 448bits  
+
+        # copy string into buffer
+        strcpy(str __buffer)
+        int len strlen(str)
+        __buffer __buffer + len
+
+        char byte 0
+        int i ml % 448
+        i 448 - i
+
+        while(i)
+            if(i = 8)
+                byte 0x80
+                debug_hit()
+            end
+            @__buffer byte 
+            __buffer++
+            i i - 8
+        end
+
+        # put message length at end
+        long mlBigE swapEndian64(ml)
+        @__buffer mlBigE
+
+        # write out formatted
+        char trailingBit 0x80
+        __buffer &buffer
+        int i 64
+        while(i)
+            char c @__buffer
+            if(c = 0)
+                printc(STDOUT "_")
+            else if(c = trailingBit)
+                printc(STDOUT "^")
+            else if(c < 20)
+                printc(STDOUT "*")
+            else
+                printc(STDOUT c)
+            end
+            __buffer++
+            i--
+        end
+        printc(STDOUT 10)
+
+        __buffer &buffer
+
+        # calc chunk amount 
+        int bufferLength 0
+        if(ml > 448)
+            bufferLength ml - 448
+            bufferLength bufferLength / 8
+        end
+        bufferLength bufferLength + 64
+
+        int j bufferLength / 64
+
+        # operate on chunks
+        while(j)
+            global __SHA1_CHUNK::words
+            __SHA1_CHUNK(__buffer)
+            ptr __words &words 
+            int k 0
+
+            uint tempa h0
+            uint tempb h1
+            uint tempc h2 
+            uint tempd h3
+            uint tempe h4
+
+            while(k < 80)
+                if(k <= 19)
+                    uint tempf !tempb
+                    tempf tempf -& tempd
+                    uint tempf0 tempb -& tempc
+                    tempf tempf | tempf0
+                    uint tempk swapEndian32(0x5A827999)
+                else if(k <= 39)
+                    tempf tempb ^ tempc
+                    tempf tempf ^ tempd
+                    tempk swapEndian32(0x6ED9EBA1)
+                else if(k <= 59)
+                    uint tempf1 tempb -& tempc
+                    tempf tempb -& tempd
+                    tempf0 tempc -& tempd
+                    tempf tempf | tempf0
+                    tempf tempf | tempf1
+                    tempk swapEndian32(0x8F1BBCDC)
+                else if(k <= 79)
+                    tempf tempb ^ tempc
+                    tempf tempf ^ tempd
+                    tempk swapEndian32(0xCA62C1D6)
+                end
+
+                # NOTE ALL ADDITIONS MIGHT BE WRONG, THIS IS NOT ONLY ENDIAN-NESS BUT THE NOTE 
+                #          "All variables are unsigned 32-bit quantities and wrap modulo 232 when calculating, 
+                #           except for ml... and hh"
+
+                uint temp bitRotateLeft32(tempa 5)
+                temp __SHA1_ADD32(temp tempf)
+                temp __SHA1_ADD32(temp tempe)
+                temp __SHA1_ADD32(temp tempk)
+                uint temp0 __SHA1_ARRAY_INDEXING32(__words k)
+                temp __SHA1_ADD32(temp temp0)
+
+                tempe tempd
+                tempd tempc
+                tempc bitRotateLeft32(tempb 30)
+                tempb tempa
+                tempa temp
+                k++
+            end
+            h0 __SHA1_ADD32(h0 tempa)
+            h1 __SHA1_ADD32(h1 tempb)
+            h2 __SHA1_ADD32(h2 tempc)
+            h3 __SHA1_ADD32(h3 tempd)
+            h4 __SHA1_ADD32(h4 tempe)
+
+            #h0 h0 + tempa
+            #h1 h1 + tempb
+            #h2 h2 + tempc 
+            #h3 h3 + tempd
+            #h4 h4 + tempe
+
+            __buffer __buffer + 64
+            j--
+        end
+        static string hh[20]
+        ptr __hh &hh
+        @__hh h0
+        __hh __hh + 4
+        @__hh h1
+        __hh __hh + 4
+        @__hh h2
+        __hh __hh + 4
+        @__hh h3
+        __hh __hh + 4
+        @__hh h4
+    end 
+    __hh &hh
+    long printL1 @__hh
+    __hh __hh + 8
+    long printL2 @__hh
+    __hh __hh + 8
+    long printI1 @__hh
+
+    printhex64(STDOUT printL1)
+    printc(STDOUT 10)
+    printhex64(STDOUT printL2)
+    printc(STDOUT 10)
+    printhex32(STDOUT printI1)
+    printc(STDOUT 10)
+end
+
+;;fi

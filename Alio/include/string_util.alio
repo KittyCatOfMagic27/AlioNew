@@ -1,0 +1,128 @@
+# ***DOCU*** NAME: STRING UTILITY \
+# ***DOCU*** ABRV: string_util \
+# ***DOCU*** DESC: Contains string utility functions and string structs. \
+# ***DOCU*** DEPENDS: stdlib \
+
+;;ifndef ALIO_STRING_UTIL
+;;def ALIO_STRING_UTIL
+
+;;include static <stdlib>
+
+struct STRING_BUNDLE
+begin
+    ptr data
+    uint length
+end
+
+proc strb_contains
+in ptr(STRING_BUNDLE) textSB
+in ptr(STRING_BUNDLE) itemSB
+out bool TR
+begin
+    uint len1 textSB->length
+    uint len2 itemSB->length
+    ptr itemptr itemSB->data
+    int i len1 - len2
+    ptr textCounter textSB->data
+    while(i)
+        TR strcmp_speclens(textCounter len2 itemptr len2)
+        if(TR)
+            i 1
+        end
+        textCounter++
+        i--
+    end
+end
+
+proc str_contains
+in ptr text
+in uint textLength
+in ptr item
+in uint itemLength
+out bool TR 
+begin
+    STRING_BUNDLE xS 
+    xS.data text
+    xS.length textLength
+    STRING_BUNDLE yS
+    yS.data item
+    yS.length itemLength
+    ptr __xS &xS
+    ptr __yS &yS
+    TR strb_contains(__xS __yS)
+end
+
+proc strb_find
+in ptr(STRING_BUNDLE) textSB
+in ptr(STRING_BUNDLE) itemSB
+out uint index
+begin
+    index NEGONE
+    uint len1 textSB->length
+    uint len2 itemSB->length
+    ptr itemptr itemSB->data
+    int i 0
+    int limit len1 - len2
+    ptr textCounter textSB->data
+    while(i < limit)
+        bool TR strcmp_speclens(textCounter len2 itemptr len2)
+        if(TR)
+            index i
+            limit 0
+        end
+        textCounter++
+        i++
+    end
+end
+
+proc str_find
+in ptr text
+in uint textLength
+in ptr item
+in uint itemLength
+out uint index 
+begin
+    STRING_BUNDLE xS 
+    xS.data text
+    xS.length textLength
+    STRING_BUNDLE yS
+    yS.data item
+    yS.length itemLength
+    ptr __xS &xS
+    ptr __yS &yS
+    index strb_find(__xS __yS)
+end
+
+proc strlen_specnull
+in ptr str
+in char delim
+out uint len
+begin
+    ptr beginning str
+    char c @str
+    while(c != delim)
+      str++
+     c @str
+    end
+    len str-beginning
+end
+
+proc str_is_number
+in ptr strnullterm
+bool isNumber
+begin
+    ptr str strnullterm
+    char c @str
+    isNumber 1
+    while(c)
+        if(c < 48)
+            isNumber 0
+        else if(c > 57)
+            isNumber 0
+        end 
+        str++
+        c @str
+    end
+end
+
+;;fi

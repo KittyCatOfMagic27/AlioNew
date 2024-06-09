@@ -1,0 +1,29 @@
+;;include static <stdlib>
+proc debug_hit
+begin
+    static string hit "hit!\n"
+    prints(STDOUT hit)
+end
+;;include static <list>
+
+struct Token
+begin
+    uint type
+    char sym
+end
+
+proc main 
+begin
+    list tokens
+    tokens.init(5)
+    ptr(Token) tkptr tokens.alloc()
+    uint type 1
+    char sym "+"
+    tkptr->type type
+    tkptr->sym sym
+
+    tkptr tokens.getIndex(0)
+    sym tkptr->sym
+    printc(STDOUT sym)
+    tokens.free()
+end

@@ -1,0 +1,16 @@
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=UTF-8
+
+<!DOCTYPE html>
+<html>
+    <title>Kat's Text Chat</title>
+    <head></head>
+    <body>
+        <p>text chat: </p>
+        <script>
+            sock = new WebSocket("http://localhost:8080", "ANON_MESSAGER")
+            sock.onmessage = (msg) =>{console.log(msg)}
+            sock.onopen = ()=>{sock.send("kat: hi it's kat")}
+        </script>
+    </body>
+</html>

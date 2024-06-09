@@ -1,0 +1,74 @@
+BUGS
+
+The lexer segfaults during tokenization if the top of the main file is empty for 2 lines..? 
+    (I don't understand why and I don't know how this has gone uncaught for so long)
+Can't deref a value into a struct on the same line it is declared. Something with how subsets are placed in pregrammer check in LEXER.
+
+FIXES
+
+Fixed issue where nested ;;if's and ;;fi's wouldn't work, causing a seg fault
+Fixed error reporting to where it shows the right line (for the most part) when an error shows up (implemented file tree)
+Fixed error reporting (more) by adding debug information to tokens that did not perviously have it.
+Changed variables in the "parse" function of the class LEXER to fix issues where compilation would be wrong when two 
+    variables had the same label and different types; they conflicted across procedures.
+Updated the very old documentation in README.md
+Fixed bug where static const strings with a length 1 did not null terminate. In turn, static const chars are also now 
+    null terminated aswell since there is no difference between the two in the intermediate language lol
+
+
+LAUGUAGE
+
+Added -> as an operator 
+Added typed pointers (no type checking, just enables the use of ->)
+EXAMPLE:
+```
+;;include static <stdlib>
+
+struct Ab
+begin 
+    uint x
+    uint y
+    uint z
+end 
+
+proc readStruct
+in ptr(Ab) thinger          # typed pointer of a struct 
+begin
+    int y thinger->z        # gets the value of the field in the struct pointed to
+    printu ( STDOUT y )
+    printc ( STDOUT 10 )
+end
+```
+
+Added the persist keyword. It keeps the procedure even if it is not called anywhere.
+It is a good way to make global variables in tandem with the global keyword.
+```
+persist proc __rand_scope
+begin
+    static long step 0
+end
+
+proc hash_seed
+out long newseed
+begin
+    global __rand_scope::step
+    step++
+    . . .
+end
+
+```
+
+
+INTER LANGUAGE 
+
+Added @ offset <bytes> and @ i<refSize>
+EXAMPLE:
+```
+proc readStruct ;
+in def i64 ?thinger ;
+begin ;
+def i32 ?y = @ offset 8 i32 ?thinger ;
+call printu ( 1 ?y ) ;
+call printc ( 1 10 ) ;
+end readStruct ;
+```

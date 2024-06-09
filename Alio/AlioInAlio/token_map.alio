@@ -1,0 +1,41 @@
+;;def ALIO_ALIO_COMPILER_TOKEN_MAP
+;;ifndef ALIO_ALIO_COMPILER_TOKEN_MAP
+
+struct TK_MAP_PAIR
+begin
+    ptr str
+    uint type
+end
+
+proc getIndexOfTokenMap
+in uint index
+out ptr __data     # TK_MAP_PAIR or NULLPTR for end
+begin  
+    TK_MAP_PAIR tkmappair
+    __data &tkmappair
+    if(index = 0)
+        static string add "+"
+        tkmappair.str &add
+        tkmappair.type TK_TYPE_OP_ADD
+    else if (index = 1)
+        static string sub "-"
+        tkmappair.str &sub
+        tkmappair.type TK_TYPE_OP_SUB
+    else if (index = 2)
+        static string mult "*"
+        tkmappair.str &mult
+        tkmappair.type TK_TYPE_OP_MULT
+    else if (index = 3)
+        static string div "/"
+        tkmappair.str &div
+        tkmappair.type TK_TYPE_OP_DIV
+    else if (index = 4)
+        static string mod "%"
+        tkmappair.str &mod
+        tkmappair.type TK_TYPE_OP_MOD
+    else
+        __data 0
+    end
+end
+
+;;fi

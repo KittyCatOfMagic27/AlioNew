@@ -1,0 +1,46 @@
+;;include static <stdlib>
+;;include static <socket>
+;;include static <memory>
+
+# go to 127.0.0.1:8080 to visit webpage
+
+proc main
+begin
+  
+  # Host
+  uint one 1
+  ptr __one &one
+  
+  short port 8080
+  sockaddr_in svr_addr
+  svr_addr.sin_family AF_INET
+  svr_addr.sin_addr INADDR_ANY
+  svr_addr.port bitswap16(port)
+  
+  ptr __svr_addr &svr_addr
+  bool x true
+  int i 100
+
+  uint sock socket(AF_INET SOCK_STREAM 0)
+  setsockopt(sock SOL_SOCKET SO_REUSEADDR __one SIZEOF_UINT)
+
+  connect(sock __svr_addr SIZEOF_SOCKADDR)
+  static string msg2 "got read connection"
+  prints(STDOUT msg2)
+  printc(STDOUT 10)
+  
+  while(i)
+    static string read_buffer[20]
+    __read_buffer &read_buffer
+    uint read_amount recv(sock __read_buffer 20)
+    #uint read_amount SYS_read(sock __read_buffer 20)
+
+    if(read_amount > 0)
+      printi(STDOUT read_amount)
+      SYS_write(STDOUT __read_buffer read_amount)
+      printc(STDOUT 10)
+    end
+    i--
+  end
+  SYS_closefd(sock)
+end

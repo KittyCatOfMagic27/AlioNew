@@ -1,0 +1,701 @@
+# ***DOCU*** NAME: Standard \
+# ***DOCU*** ABRV: stdlib \
+# ***DOCU*** DESC: The standard library for Alio. \
+# ***DOCU*** DEPENDS: sys/OS\
+
+;;ifndef ALIO_STDLIB
+;;def ALIO_STDLIB
+
+# Sizes
+;;define SIZEOF_CHAR 1
+;;define SIZEOF_BOOL 1
+;;define SIZEOF_UINT 4
+;;define SIZEOF_INT 4
+;;define SIZEOF_PTR 8
+;;define SIZEOF_LONG 8
+# OUTSTREAMS
+;;define STDERR 2
+;;define STDOUT 1
+;;define STDIN 0
+# MISC
+;;define NEGONE 4294967294
+
+;;ifdef OS_LINUX_DEBIAN
+;;include static <sys/linux_debian>
+;;fi
+
+;;ifdef OS_WIN32
+;;include static <sys/win32>
+;;fi
+
+;;ifdef LIBC
+;;include static <sys/libc>
+;;fi
+
+proc sizeof_file
+in uint fd
+out uint size
+begin
+  string fstat_struct[144]
+  ptr y &fstat_struct
+  SYS_fstat(fd y)
+  y y+48
+  size @y
+end
+
+#UTIL
+proc printu
+in uint fd
+in uint x # no err bc it would throw off asm 
+begin
+    __asm(
+    "  mov    eax, edi"
+    "  mov    ecx, 10"
+    "  push   rcx"
+    "  mov    rsi, rsp"
+    "  sub    rsp, 16"
+    ".toascii_digit:"
+    "  xor    edx, edx"
+    "  div    ecx"
+    "  add    edx, 48"
+    "  dec    rsi"
+    "  mov    [rsi], dl"
+    "  test   eax,eax"
+    "  jnz  .toascii_digit"
+    "  mov    eax, 1"
+    "  lea    edi, [rsp+16]"
+    "  sub    edi, esi"
+    "  mov    rax, rsi"
+    "  mov    esi, edi"
+    "  mov    rdi, rax"
+    "  mov    eax, dword [rbp-4]"
+  )
+  SYS_write()
+  __asm("  add rsp, 24")
+end
+
+proc printi
+in uint fd
+in uint x
+out uint err
+begin
+  if(x<NEGONE)
+    x NEGONE-x
+    x x+2
+    char y "-"
+    ptr z &y
+    SYS_write(fd z 1)
+  end
+  err printu(fd x)
+end
+
+proc printc
+in uint fd
+in char x
+out uint err
+begin
+  ptr y &x
+  err SYS_write(fd y 1)
+end
+
+proc strlen
+in ptr str
+out uint len
+begin
+  ptr beginning str
+  char c @str
+  while(c)
+    str++
+    c @str
+  end
+  len str-beginning
+end
+
+proc strcmp
+in ptr str1
+in ptr str2
+out bool equals?
+begin
+  uint len1 strlen(str1)
+  uint len2 strlen(str2)
+  equals? len1 = len2
+  if(equals?)
+    bool continue true
+    bool i 0
+    while(continue)
+      char c1 @str1
+      char c2 @str2
+      equals? c1 = c2
+      bool nend i < len1
+      continue equals? && nend
+      i++
+      str1++
+      str2++
+    end
+  end
+end
+
+proc strcmp_speclens
+in ptr str1
+in uint len1
+in ptr str2
+in uint len2
+out bool equals?
+begin
+  equals? len1 = len2
+  if(equals?)
+    bool continue true
+    bool i 0
+    while(continue)
+      char c1 @str1
+      char c2 @str2
+      equals? c1 = c2
+      bool nend i < len1
+      continue equals? && nend
+      i++
+      str1++
+      str2++
+    end
+  end
+end
+
+proc strcpy
+in ptr source
+in ptr dest
+begin
+  char c @source
+  while(c)
+    @dest c
+    source++
+    dest++
+    c @source
+  end
+  @dest 0
+end
+
+proc strcpylen
+in ptr source 
+in ptr dest
+in uint len
+begin
+  char c @source
+  uint i 0
+  while(i<len)
+    @dest c
+    source++
+    dest++
+    c @source
+    i++
+  end
+  @dest 0
+end
+
+proc strend
+in ptr str
+out ptr s_end
+begin
+  char c @str
+  while(c)
+    str++
+    c @str
+  end
+  s_end str
+end
+
+proc prints
+in uint fd
+in ptr str
+out uint err
+begin
+  uint len strlen(str)
+  err SYS_write(fd str len)
+end
+
+proc __print_error
+in int error
+begin
+  error NEGONE-error
+  error error+2
+  string error_msg[256]
+  ptr eptr &error_msg
+  long null 0
+  uint i 0
+  while(i<256)
+    @eptr null
+    eptr eptr + 8
+    i i + 8
+  end
+  eptr &error_msg
+  if(error=1)
+    error_msg "Operation not permitted."
+  else if(error=2)
+    error_msg "No such file or directory."
+  else if(error=3)
+    error_msg "No such process."
+  else if(error=4)
+    error_msg "Interrupted system call."
+  else if(error=5)
+    error_msg "I/O error."
+  else if(error=6)
+    error_msg "No such device or address."
+  else if(error=7)
+    error_msg "Argument list too long."
+  else if(error=8)
+    error_msg "Exec format error."
+  else if(error=9)
+    error_msg "Bad file number."
+  else if(error=10)
+    error_msg "No child processes."
+  else if(error=11)
+    error_msg "Try again."
+  else if(error=12)
+    error_msg "Out of memory."
+  else if(error=13)
+    error_msg "Permission denied."
+  else if(error=14)
+    error_msg "Bad address."
+  else if(error=15)
+    error_msg "Block device required."
+  else if(error=16)
+    error_msg "Device or resource busy."
+  else if(error=17)
+    error_msg "File exists."
+  else if(error=18)
+    error_msg "Cross-device link."
+  else if(error=19)
+    error_msg "No such device."
+  else if(error=20)
+    error_msg "Not a directory."
+  else if(error=21)
+    error_msg "Is a directory."
+  else if(error=22)
+    error_msg "Invalid argument."
+  else if(error=23)
+    error_msg "File table overflow."
+  else if(error=24)
+    error_msg "Too many open files."
+  else if(error=25)
+    error_msg "Not a typewriter."
+  else if(error=26)
+    error_msg "Text file busy."
+  else if(error=27)
+    error_msg "File too large."
+  else if(error=28)
+    error_msg "No space left on device."
+  else if(error=29)
+    error_msg "Illegal seek."
+  else if(error=30)
+    error_msg "Read-only file system."
+  else if(error=31)
+    error_msg "Too many links."
+  else if(error=32)
+    error_msg "Broken pipe."
+  else if(error=33)
+    error_msg "Math argument out of domain of func."
+  else if(error=34)
+    error_msg "Math result not representable."
+  else if(error=35)
+    error_msg "Resource deadlock would occur."
+  else if(error=36)
+    error_msg "File name too long."
+  else if(error=37)
+    error_msg "No record locks available."
+  else if(error=38)
+    error_msg "Function not implemented."
+  else if(error=39)
+    error_msg "Directory not empty."
+  else if(error=40)
+    error_msg "Too many symbolic links encountered."
+  else if(error=42)
+    error_msg "No message of desired type."
+  else if(error=43)
+    error_msg "Identifier removed."
+  else if(error=44)
+    error_msg "Channel number out of range."
+  else if(error=45)
+    error_msg "Level 2 not synchronized."
+  else if(error=46)
+    error_msg "Level 3 halted."
+  else if(error=47)
+    error_msg "Level 3 reset."
+  else if(error=48)
+    error_msg "Link number out of range."
+  else if(error=49)
+    error_msg "Protocol driver not attached."
+  else if(error=50)
+    error_msg "No CSI structure available."
+  else if(error=51)
+    error_msg "Level 2 halted."
+  else if(error=52)
+    error_msg "Invalid exchange."
+  else if(error=53)
+    error_msg "Invalid request descriptor."
+  else if(error=54)
+    error_msg "Exchange full."
+  else if(error=55)
+    error_msg "No anode."
+  else if(error=56)
+    error_msg "Invalid request code."
+  else if(error=57)
+    error_msg "Invalid slot."
+  else if(error=59)
+    error_msg "Bad font file format."
+  else if(error=60)
+    error_msg "Device not a stream."
+  else if(error=61)
+    error_msg "No data available."
+  else if(error=62)
+    error_msg "Timer expired."
+  else if(error=63)
+    error_msg "Out of streams resources."
+  else if(error=64)
+    error_msg "Machine is not on the network."
+  else if(error=65)
+    error_msg "Package not installed."
+  else if(error=66)
+    error_msg "Object is remote."
+  else if(error=67)
+    error_msg "Link has been severed."
+  else if(error=68)
+    error_msg "Advertise error."
+  else if(error=69)
+    error_msg "Srmount error."
+  else if(error=70)
+    error_msg "Communication error on send."
+  else if(error=71)
+    error_msg "Protocol error."
+  else if(error=72)
+    error_msg "Multihop attempted."
+  else if(error=73)
+    error_msg "RFS specific error."
+  else if(error=74)
+    error_msg "Not a data message."
+  else if(error=75)
+    error_msg "Value too large for defined data type."
+  else if(error=76)
+    error_msg "Name not unique on network."
+  else if(error=77)
+    error_msg "File descriptor in bad state."
+  else if(error=78)
+    error_msg "Remote address changed."
+  else if(error=79)
+    error_msg "Can not access a needed shared library."
+  else if(error=80)
+    error_msg "Accessing a corrupted shared library."
+  else if(error=81)
+    error_msg "lib section in a out corrupted."
+  else if(error=82)
+    error_msg "Attempting to link in too many shared libraries."
+  else if(error=83)
+    error_msg "Cannot exec a shared library directly."
+  else if(error=84)
+    error_msg "Illegal byte sequence."
+  else if(error=85)
+    error_msg "Interrupted system call should be restarted."
+  else if(error=86)
+    error_msg "Streams pipe error."
+  else if(error=87)
+    error_msg "Too many users."
+  else if(error=88)
+    error_msg "Socket operation on non-socket."
+  else if(error=89)
+    error_msg "Destination address required."
+  else if(error=90)
+    error_msg "Message too long."
+  else if(error=91)
+    error_msg "Protocol wrong type for socket."
+  else if(error=92)
+    error_msg "Protocol not available."
+  else if(error=93)
+    error_msg "Protocol not supported."
+  else if(error=94)
+    error_msg "Socket type not supported."
+  else if(error=95)
+    error_msg "Operation not supported on transport endpoint."
+  else if(error=96)
+    error_msg "Protocol family not supported."
+  else if(error=97)
+    error_msg "Address family not supported by protocol."
+  else if(error=98)
+    error_msg "Address already in use."
+  else if(error=99)
+    error_msg "Cannot assign requested address."
+  else if(error=100)
+    error_msg "Network is down."
+  else if(error=101)
+    error_msg "Network is unreachable."
+  else if(error=102)
+    error_msg "Network dropped connection because of reset."
+  else if(error=103)
+    error_msg "Software caused connection abort."
+  else if(error=104)
+    error_msg "Connection reset by peer."
+  else if(error=105)
+    error_msg "No buffer space available."
+  else if(error=106)
+    error_msg "Transport endpoint is already connected."
+  else if(error=107)
+    error_msg "Transport endpoint is not connected."
+  else if(error=108)
+    error_msg "Cannot send after transport endpoint shutdown."
+  else if(error=109)
+    error_msg "Too many references: cannot splice."
+  else if(error=110)
+    error_msg "Connection timed out."
+  else if(error=111)
+    error_msg "Connection refused."
+  else if(error=112)
+    error_msg "Host is down."
+  else if(error=113)
+    error_msg "No route to host."
+  else if(error=114)
+    error_msg "Operation already in progress."
+  else if(error=115)
+    error_msg "Operation now in progress."
+  else if(error=116)
+    error_msg "Stale NFS file handle."
+  else if(error=117)
+    error_msg "Structure needs cleaning."
+  else if(error=118)
+    error_msg "Not a XENIX named type file."
+  else if(error=119)
+    error_msg "No XENIX semaphores available."
+  else if(error=120)
+    error_msg "Is a named type file."
+  else if(error=121)
+    error_msg "Remote I/O error."
+  else if(error=122)
+    error_msg "Quota exceeded."
+  else if(error=123)
+    error_msg "No medium found."
+  else if(error=124)
+    error_msg "Wrong medium type."
+  else if(error=125)
+    error_msg "Operation Canceled."
+  else if(error=126)
+    error_msg "Required key not available."
+  else if(error=127)
+    error_msg "Key has expired."
+  else if(error=128)
+    error_msg "Key has been revoked."
+  else if(error=129)
+    error_msg "Key was rejected by service."
+  else if(error=130)
+    error_msg "Owner died."
+  else if(error=131)
+    error_msg "State not recoverable."
+  end
+  eptr &error_msg
+  prints(STDERR eptr)
+end
+
+proc read_stdin
+in ptr buffer
+in uint length
+out uint len
+begin
+  length SYS_read(STDIN buffer length)
+  if(length<0)
+    char newline 10
+    string error "Unable to read stdin."
+    ptr mp &error
+    SYS_write(STDERR mp 22)
+    string msg "Error: "
+    mp &msg
+    SYS_write(STDERR mp 7)
+    __print_error(length)
+    printc(STDERR newline)
+    SYS_exit(1)
+  end
+  len length
+end
+
+proc readf
+in uint fd
+in ptr buffer
+in uint length
+out uint len
+begin
+  length SYS_read(fd buffer length)
+  if(length<0)
+    char newline 10
+    string error "Unable to read file."
+    ptr mp &error
+    SYS_write(STDERR mp 21)
+    string msg "Error: "
+    mp &msg
+    SYS_write(STDERR mp 7)
+    __print_error(length)
+    printc(STDERR newline)
+    SYS_exit(1)
+  end
+  len length
+end
+
+proc openf
+in ptr filename
+out uint fd
+begin
+  fd SYS_openfd(filename O_RDWR S_IRWXU)
+  if(fd<0)
+    char newline 10
+    string error "Unable to open file."
+    ptr mp &error
+    SYS_write(STDERR mp 21)
+    string msg "Error: "
+    mp &msg
+    SYS_write(STDERR mp 7)
+    __print_error(fd)
+    printc(STDERR newline)
+    SYS_exit(1)
+  end
+end
+
+proc creatf
+in ptr filename
+out uint fd
+begin
+  uint flags O_CREAT | O_RDWR
+  flags flags | O_TRUNC
+  flags flags | O_APPEND
+  fd SYS_openfd(filename flags S_IRWXU)
+  if(fd<0)
+    char null 0
+    char newline 10
+    string error "Unable to open and/or create file."
+    ptr mp &error
+    prints(STDERR mp)
+    string msg "Error: "
+    mp &msg
+    SYS_write(STDERR mp 7)
+    __print_error(fd)
+    printc(STDERR newline)
+    SYS_exit(1)
+  end
+end
+
+proc execve
+in ptr filename
+in ptr argv
+in ptr envp
+begin
+  uint err SYS_execve(filename argv envp)
+  if(err<0)
+    char null 0
+    char newline 10
+    string error "Unable able to run exec."
+    ptr mp &error
+    prints(STDERR mp)
+    string msg "Error: "
+    mp &msg
+    SYS_write(STDERR mp 7)
+    __print_error(err)
+    printc(STDERR newline)
+    SYS_exit(1)
+  end
+end
+
+proc tohex8
+in char c
+in ptr buffer
+begin
+  char save c
+  c >> 4
+  bool letter? c >= 10
+  if(letter?)
+    c c+7
+  end
+  c c+48
+  @buffer c
+  buffer++
+  c save
+  c c -& 15
+  letter? c >= 10
+  if(letter?)
+    c c+7
+  end
+  c c+48
+  @buffer c
+end
+
+proc tohex32
+in uint c
+in ptr buffer
+begin
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+end
+
+proc tohex64
+in long c
+in ptr buffer
+begin
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+  c >> 8
+  buffer buffer + 2
+  tohex8(c buffer)
+end
+
+proc printhex8
+in uint fd
+in char c
+begin
+  string buffer[2]
+  string prefix "0x"
+  ptr y &buffer
+  tohex8(c y)
+  y &prefix
+  SYS_write(fd y 4)
+end
+
+proc printhex32
+in uint fd
+in uint hex
+begin
+  string buffer[8]
+  string prefix "0x"
+  ptr y &buffer
+  tohex32(hex y)
+  y &prefix
+  SYS_write(fd y 10)
+end
+
+proc printhex64
+in uint fd
+in long hex
+begin
+  string buffer[16]
+  string prefix "0x"
+  ptr y &buffer
+  tohex64(hex y)
+  y &prefix
+  SYS_write(fd y 18)
+end
+
+;;fi

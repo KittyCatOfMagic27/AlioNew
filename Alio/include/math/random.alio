@@ -1,0 +1,90 @@
+# ***DOCU*** NAME: Random \
+# ***DOCU*** ABRV: math/random \
+# ***DOCU*** DESC: Provides random functions (NO WORK) \
+# ***DOCU*** DEPENDS: ----- \
+
+;;ifndef ALIO_MATH_RANDOM
+;;def ALIO_MATH_RANDOM
+
+# research how random functions work and get their seed
+
+persist proc __rand_scope
+begin
+    static long step
+    # Temporary Fix 
+    long l __COMPILER_RQ RAND_NUMBER UINT
+    step l
+end
+
+proc __rand_unit
+in long seed
+in uint x
+begin
+
+end 
+
+proc rand_long
+out long seed
+begin
+    seed &seed
+end
+
+proc hash_seed
+out long newseed
+begin
+    global __rand_scope::step
+    ptr __step &step
+    step step + 1
+    step step * 7
+    newseed @__step
+    newseed newseed + __step
+end
+
+# broken af 
+
+proc rand_uint_range
+in uint minI
+in uint maxI 
+out uint numberI
+begin
+    numberI hash_seed()
+    int greaterThanNeg numberI < 0
+    if (greaterThanNeg)
+        numberI numberI - 2147483648
+    end
+    uint rangeI minI - maxI # backwards but sort of workss
+    uint numberGreaterThanRangeI numberI > rangeI
+    numberI numberI % rangeI
+    numberI numberI + minI
+end
+
+proc rand_uint8_range
+in bool min
+in bool max 
+out bool number
+begin
+    number hash_seed()
+    bool greaterThan127 number < 0
+    if (greaterThan127)
+        number number - 127
+    end
+    bool range max - min
+    bool numberGreaterThanRange number > range
+    while(numberGreaterThanRange)
+        number number - range
+        numberGreaterThanRange number > range
+    end
+    number number + min
+end
+
+proc coinflip
+out bool tr
+begin
+    uint number hash_seed()
+    if(number < 0)
+        number number + 127
+    end
+    tr number % 2
+end
+
+;;fi

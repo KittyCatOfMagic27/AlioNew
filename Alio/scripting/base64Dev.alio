@@ -1,0 +1,159 @@
+;;include static <stdlib>
+proc debug_hit
+begin
+    static string hit "hit!\n"
+    prints(STDOUT hit)
+end
+;;include static <crypt/base64>
+#;;include static <crypt/SHA1>
+
+
+# developing base64 to be used for sockets
+# copy of the code in sockettest main
+# ISSUE
+# none of the sha1 algos (sha1sum, teeny, openssl sha1) match the expected output given by the spec 
+# this value is b37a4f2cc0624f1690f64606cf385945b2bec4ea for the string dGhlIHNhbXBsZSBub25jZQQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11
+# the sha1 algos are correct tho, so maybe the standard has a different SHA1 spec (awful if so)
+
+# tried to automate and it with getsha1sum always dies on calling openssl sha1
+# tried using sha1sum but it prints to STDOUT and i dont think it can be changed
+
+proc GetSHA1SUM
+in ptr message 
+in uint length 
+in ptr wbuffer
+in uint wlength
+begin
+    static string infilename "./realsharead.txt"
+    static string outfilename "./realshaout.txt"
+    uint fd openf(infilename)
+    SYS_write(fd message length)
+    SYS_closefd(fd)
+
+    static string command "../../../bin/openssl"
+    static string command2 "sha1"
+    static string commandarg1flag "-out"
+    static string commandarg2flag "-binary"
+
+    ptr nullptr 0
+    static string argv[56]
+    ptr __argv &argv
+
+    ptr str &command
+    @__argv str
+    __argv __argv + 8
+
+    ptr str &command2
+    @__argv str
+    __argv __argv + 8
+
+    str &commandarg1flag
+    @__argv str
+    __argv __argv + 8
+
+    str &outfilename
+    @__argv str
+    __argv __argv + 8
+
+    str &commandarg2flag
+    @__argv str
+    __argv __argv + 8
+
+    str &infilename
+    @__argv str
+    __argv __argv + 8
+
+    @__argv nullptr
+
+    uint err SYS_execve(command argv nullptr)
+    if(err < 0)
+        __print_error(err)
+        SYS_exit(NEGONE)
+    end
+
+    fd openf(outfilename)
+    readf(fd wbuffer wlength)
+    SYS_closefd(fd)
+end
+
+proc main 
+begin
+    #static string buffer[128]
+    #static string str "sGAdNULp8EfStwKlzYcuPQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    #uint stringlength strlen(str)
+    #base64(str buffer stringlength 128)
+    #SYS_write(STDOUT buffer 128)
+    #printc(STDOUT 10)
+
+
+    # grab key then concat key and "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    static string keybuffer[61]
+    ptr __keybuffer &keybuffer
+
+    #                                        28                       
+    #  test value, this should equal s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+    static string __key "dGhlIHNhbXBsZSBub25jZQQ=="
+    ptr key &__key
+    uint length strlen(key)
+
+    strcpylen(key keybuffer length)
+    __keybuffer __keybuffer + length 
+
+    static string magic_string "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    strcpy(magic_string __keybuffer)
+    #SYS_write(STDOUT keybuffer 61)
+    #printc(STDOUT 10)
+    length strlen(keybuffer)
+
+    # more permanent solution while waiting for SHA-1 impl to be finished
+
+    static string sha1out[40]
+    GetSHA1SUM(keybuffer 61 sha1out 40)
+
+    SYS_write(STDOUT sha1out 40)
+    printc(STDOUT 10)
+
+    # first temporary solution while waiting for SHA-1 impl to be finished
+    #static string prompt "Input SHA-1 in hex of given key: "
+    #prints(STDOUT prompt)
+
+    # test value 1
+    #static string promptBuffer "b37a4f2cc0624f1690f64606cf385945b2bec4ea"
+    #uint promptLength strlen(promptBuffer)
+
+    
+
+    static string base64String[128]
+    uint base64StringLength 28
+
+    hexToBase64(sha1out base64String 40 128)
+    
+    # construct handshake
+    static string handshakeBegining "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
+    static string handshake[1000]
+    strcpy(handshakeBegining handshake)
+    ptr __handshake &handshake
+    length strlen(handshakeBegining)
+    __handshake __handshake + length
+
+    strcpylen(base64String __handshake base64StringLength)
+    __handshake __handshake + base64StringLength
+
+    bool byte 13
+    @__handshake byte 
+    __handshake++
+    byte 10
+    @__handshake byte
+    __handshake++
+    byte 13
+    @__handshake byte 
+    __handshake++
+    byte 10
+    @__handshake byte
+    __handshake++
+    byte 0
+    @__handshake byte
+    __handshake++
+
+    prints(STDOUT handshake)
+end 

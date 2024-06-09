@@ -1,0 +1,59 @@
+;;include static <stdlib>
+;;include static <memory>
+
+;;include static "tokens.alio"
+
+struct FILEDATA
+begin
+  ptr fileaddr
+  uint filesize
+end
+
+proc getfile
+in ptr filename
+out ptr __data
+begin
+  uint fd openf(filename)
+  uint filesize sizeof_file(fd)
+  uint prot PROT_READ | PROT_WRITE
+  uint flags MAP_PRIVATE | MAP_ANONYMOUS
+  ptr fileaddr mmap(0 filesize prot flags 0 0)
+  uint length readf(fd fileaddr filesize)
+  SYS_closefd(fd)
+  FILEDATA data
+  data.fileaddr fileaddr
+  data.filesize filesize
+  __data &data
+end
+
+proc freefile
+in ptr fileaddr
+in uint filesize
+begin
+    munmap(fileaddr filesize)
+end 
+
+proc main
+begin
+    static string hello "Hello to Another\n"
+    prints(STDOUT hello)
+    static string filename "testfile.alio"
+    ptr __ofile getfile(filename)
+    FILEDATA file
+    file @__ofile
+    ptr __file &file
+
+    # read file / Tokenize
+    ptr str file.fileaddr
+    ptr endOfFile str + file.filesize
+    while(str < endOfFile)
+        ptr __tk getNextToken(endOfFile &str)
+        Token tk
+        tk @__tk
+
+        
+        tk.free()
+    end
+
+    freefile(file.fileaddr file.filesize)
+end

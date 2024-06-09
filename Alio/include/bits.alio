@@ -1,0 +1,53 @@
+# ***DOCU*** NAME: BITS HEADER \
+# ***DOCU*** ABRV: bits \
+# ***DOCU*** DESC: Provides bitwise procedures \
+# ***DOCU*** DEPENDS: ------\
+
+;;ifndef ALIO_BITS
+;;def ALIO_BITS
+
+proc variableShiftLeft32
+in uint x
+in uint shiftAmount
+out uint y
+begin
+    int i shiftAmount
+    while(i)
+        x << 1
+        i--
+    end 
+    y x 
+end
+
+proc variableShiftRight32
+in uint x
+in uint shiftAmount
+out uint y
+begin
+    int i shiftAmount
+    while(i)
+        x >> 1
+        i--
+    end 
+    y x 
+end
+
+
+proc bitRotateLeft32
+in uint x
+in uint shiftAmount
+out uint y
+begin 
+    uint mask 0xFFFFFFFF
+    uint counterShift 32 - shiftAmount
+
+    mask variableShiftRight32(mask counterShift)
+    mask variableShiftLeft32(mask counterShift)
+    uint fallOffBits x -& mask
+
+    x variableShiftLeft32(x shiftAmount)
+    fallOffBits variableShiftRight32(fallOffBits counterShift)
+    y x ^ fallOffBits
+end 
+
+;;fi

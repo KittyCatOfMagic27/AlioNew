@@ -1,0 +1,16 @@
+proc main
+begin
+
+    #uint x 1 + 2 - 3
+    uint x 1
+    ptr y &x
+    @y 0 
+    #uint y 420
+
+    #uint z 50 * 40
+
+    #uint z 1 + 2 + 3 + 4
+
+    #printu(STDOUT x)
+    #printc(STDOUT 10)
+end

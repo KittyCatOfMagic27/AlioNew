@@ -1,0 +1,75 @@
+# ***DOCU*** NAME: SHA1 \
+# ***DOCU*** ABRV: crypt/SHA1 \
+# ***DOCU*** DESC: Provides the SHA-1 encoding algorithm \
+# ***DOCU*** DEPENDS: stdlib\
+
+;;ifndef ALIO_MATH_ENDIAN
+;;def ALIO_MATH_ENDIAN
+
+;;include static <stdlib>
+
+proc __swapEndianNN
+in ptr x
+in ptr y
+in int bytes
+begin
+    bool i bytes - 1
+    y y + i
+    i bytes
+    while(i)
+        bool byte @x
+        @y byte
+        i--
+        y--
+        x++
+    end
+end
+
+proc swapEndian32
+in uint x
+out uint y
+begin
+    ptr __x &x
+    ptr __y &y
+    __swapEndianNN(__x __y 4)
+end
+
+proc swapEndian64
+in long x
+out long y
+begin
+    ptr __x &x
+    ptr __y &y
+    __swapEndianNN(__x __y 8)
+end
+
+# returns 0 for little endian
+# returns 1 for big endian
+proc checkEndian
+out bool isBigEndian 
+begin 
+    uint x 0x67452301
+    char nullterm 0
+    string buffer[8]
+    string prefix "0x"
+    ptr y &buffer
+    tohex32(x y)
+    y &prefix
+    char nullterm0 0
+    string bigEndianVersion "0x67452301"
+    ptr __bigEndianVersion &bigEndianVersion
+    isBigEndian strcmp(y __bigEndianVersion)
+end
+
+proc swappedEndianAdd32
+in uint x
+in uint y
+out uint z
+begin
+    x swapEndian32(x)
+    y swapEndian32(y)
+    z x + y
+    z swapEndian32(z)
+end
+
+;;fi

@@ -1,0 +1,261 @@
+;;include static <stdlib>
+proc debug_hit
+begin
+    static string hit "hit!\n"
+    prints(STDOUT hit)
+end
+;;include static <socket>
+;;include static <memory>
+;;include static <string_util>
+;;include static <crypt/base64>
+
+# go to 127.0.0.1:8080 to visit webpage
+
+# FOR CURRENT ISSUE VISIT scripting/base64Dev.alio
+
+struct FILEDATA
+begin
+  ptr data
+  uint filesize
+end
+
+proc getfile
+in ptr filename
+out ptr __data
+begin
+  uint fd openf(filename)
+  uint filesize sizeof_file(fd)
+  uint prot PROT_READ | PROT_WRITE
+  uint flags MAP_PRIVATE | MAP_ANONYMOUS
+  ptr fileaddr mmap(0 filesize prot flags 0 0)
+  uint length readf(fd fileaddr filesize)
+  SYS_closefd(fd)
+  FILEDATA data
+  data.data fileaddr
+  data.filesize filesize
+  __data &data
+end
+
+proc readHandShake
+in uint client_fd
+in ptr __read_amount # uint ptr
+out bool rq
+begin 
+  static string read_buffer[1000]
+  uint read_amount recvERRCHECK(client_fd read_buffer 1000)
+  @__read_amount read_amount
+
+  #printi(STDOUT read_amount)
+  #printc(STDOUT 10)
+  #SYS_write(STDOUT read_buffer read_amount)
+  #printc(STDOUT 10)
+
+  if(read_amount > 0)
+    # check HTML Request
+    static string HTMLRQ "text/html"
+    uint HTMLRQLength strlen(HTMLRQ)
+    HTMLRQLength--
+    bool isHTMLRQ str_contains(read_buffer read_amount HTMLRQ HTMLRQLength)
+    if(isHTMLRQ)
+      rq 1
+    else
+      # check webSocket request Sec-WebSocket-Version: 13
+      static string webSocketRQ "Sec-WebSocket-Version: 13"
+      uint webSocketRQLength strlen(webSocketRQ)
+      webSocketRQLength--
+      bool isWebSocketRQ str_contains(read_buffer read_amount webSocketRQ webSocketRQLength)
+      if(isWebSocketRQ)
+        rq 2
+      else 
+        rq 0
+      end
+    end
+  else
+    rq 0-1
+  end  
+end
+
+proc handleDataFrame 
+in uint client_fd
+in uint read_amount 
+begin
+  # Header
+  # byte 1:
+  # FIN bit - is the last message of a series (if is 0 keep listening for more messaages)
+  # RSV1 bit, RSRV2 bit, RSRV3 bit  
+  # 4bit OPCODE (0x0 continuation, 0x1 UTF-8, 0x2 bin)
+  # bytes 2-10: payload length:
+    # byte 1 is a uint8 (do -& 0x8F / exclude first bit)
+    # if byte 1 is less than 126 byte 1 contains the length
+    # if byte 1 is 126 uint(bytes 2 and 3) is your length 
+    # if byte 1 is 127 (ulong(bytes 2 through 10) -& 0x8F(FF...)) is your length
+  # if masking next 4 bytes are the masking key (the client must always mask)
+  
+  # read the the payload length from the socket
+  
+  # Unmasking Message
+  # iterate through each byte with iterator i indexed 0
+  #   newbyte = byte ^ mask[i % 4]
+  #   dynamic_string.append(newbyte)
+end
+
+proc handleWebSocketConnection
+in uint client_fd
+in uint read_amount 
+begin
+  # confirm handshake
+  global readHandShake::read_buffer
+
+  #static string msg2 "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
+  #ptr __msg &msg2
+  # take Sec-WebSocket-Key taken from read handshake
+  # newstring key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  # ptr newkey SHA1(newstring)
+  # ptr newkey strTobase64(newkey len(newkey))
+  # msg2 msg2 + newkey + "\r\n"
+
+  # find the WebSocket key
+  static string keyField "Sec-WebSocket-Key:"
+  uint keyFieldLength strlen(keyField)
+  keyFieldLength--
+
+  uint index str_find(read_buffer read_amount keyField keyFieldLength)
+  printi(STDOUT index)
+  printc(STDOUT 10)
+  if(index < 0)
+    static string errmsgNoKey "The socket did not have a key or the server could not find it.\n"
+    prints(STDERR errmsgNoKey)
+    SYS_exit(NEGONE)
+  end
+  
+  # add one to account for the space
+  index index + keyFieldLength
+  index index + 2
+
+  # grab key then concat key and "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  static string keybuffer[61]
+  ptr __read_buffer &read_buffer
+  ptr __keybuffer &keybuffer
+
+  #                                        28                       
+  #  test value, this should equal s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+  #                                  b37a4f2cc0624f1690f64606cf385945b2bec4ea
+  #static string __key "dGhlIHNhbXBsZSBub25jZQQ=="
+  #ptr key &__key
+  #uint length strlen(key)
+
+  # real value 
+  ptr key __read_buffer + index
+  uint length strlen_specnull(key 13)
+
+
+  strcpylen(key keybuffer length)
+  __keybuffer __keybuffer + length 
+
+  static string magic_string "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+  strcpy(magic_string __keybuffer)
+  SYS_write(STDOUT keybuffer 61)
+  printc(STDOUT 10)
+  length strlen(keybuffer)
+
+  # temporary solution while waiting for SHA-1 impl to be finished
+  static string prompt "Input SHA-1 in hex of given key: "
+  prints(STDOUT prompt)
+  # real value
+  static string promptBuffer[128]
+  uint promptLength SYS_read(STDIN promptBuffer 128)
+  promptLength--
+
+  # test value
+  #static string promptBuffer "b37a4f2cc0624f1690f64606cf385945b2bec4ea"
+  #uint promptLength strlen(promptBuffer)
+
+
+  static string base64String[128]
+  uint base64StringLength 28
+
+  hexToBase64(promptBuffer base64String promptLength 128)
+  
+  # construct handshake
+  static string handshakeBegining "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "
+  static string handshake[1000]
+  strcpy(handshakeBegining handshake)
+  ptr __handshake &handshake
+  length strlen(handshakeBegining)
+  __handshake __handshake + length
+
+  strcpylen(base64String __handshake base64StringLength)
+  __handshake __handshake + base64StringLength
+
+  bool byte 13
+  @__handshake byte 
+  __handshake++
+  byte 10
+  @__handshake byte
+  __handshake++
+  byte 13
+  @__handshake byte 
+  __handshake++
+  byte 10
+  @__handshake byte
+  __handshake++
+  byte 0
+  @__handshake byte
+  __handshake++
+
+  prints(STDOUT handshake)
+  prints(client_fd handshake)
+end
+
+proc main
+begin
+  # Get html file
+  static string filename "./webpage.html"
+  ptr __file getfile(filename)
+  FILEDATA file
+  file @__file
+  
+  # Host
+  uint one 1
+  ptr __one &one
+  uint sock socket(AF_INET SOCK_STREAM 0)
+  setsockopt(sock SOL_SOCKET SO_REUSEADDR __one SIZEOF_UINT)
+  
+  short port 8080
+  sockaddr_in svr_addr
+  svr_addr.sin_family AF_INET
+  svr_addr.sin_addr INADDR_ANY
+  svr_addr.port bitswap16(port)
+  
+  ptr __svr_addr &svr_addr
+  bind(sock __svr_addr SIZEOF_SOCKADDR)
+
+  bool x true
+  while(x)
+    listen(sock 5)
+    uint client_fd accept(sock 0 0)
+    static string msgConnect "    got connection"
+    prints(STDOUT msgConnect)
+    printc(STDOUT 10)
+
+    uint read_amount 0
+    ptr __read_amount &read_amount
+    bool rq readHandShake(client_fd __read_amount)
+
+    if(rq < 0)
+      static string msgNoRead "no read\n"
+      prints(STDOUT msgNoRead)
+    else if(rq = 1)
+      static string msgHTMLRQ "got an html request\n"
+      prints(STDOUT msgHTMLRQ)
+      SYS_write(client_fd file.data file.filesize)
+    else if(rq = 2)
+      static string msgWebSocketRQ "got a request from a websocket\n"
+      prints(STDOUT msgWebSocketRQ)
+      handleWebSocketConnection(client_fd read_amount)
+    end 
+    SYS_closefd(client_fd)
+  end
+
+  SYS_closefd(sock)
+end

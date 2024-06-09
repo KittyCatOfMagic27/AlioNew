@@ -1,0 +1,496 @@
+;;include static <stdlib>
+;;include static <math/random>
+
+proc debug_hit
+begin
+    static string prompt "hit\n"
+    prints(STDOUT prompt)
+end
+
+struct PokerTable 
+begin
+    bool playerCard1
+    bool playerCard2
+    ptr AdditionalPlayerCards
+    bool AdditionalPlayerCardCount
+    bool playerCardTotal
+    bool dealerCard1
+    bool dealerCard2
+    ptr AdditionalDealerCards
+    bool AdditionalDealerCardCount
+    bool dealerCardTotal
+end 
+
+struct Hand
+begin
+    bool card1
+    bool card2
+    ptr additionalCards
+    bool additionalCardCount
+    bool cardTotal
+end
+
+proc displayHands
+in ptr(PokerTable) __pkt
+begin
+    static string prompt "Your cards were: "
+    prints(STDOUT prompt)
+
+    uint displayInt 0
+    bool byte __pkt->playerCard1
+    displayInt byte
+    if(displayInt != 1)
+        printu(STDOUT displayInt)
+    else 
+        printc(STDOUT "A")
+    end
+    printc(STDOUT " ")
+
+    byte __pkt->playerCard2
+    displayInt byte
+    if(displayInt != 1)
+        printu(STDOUT displayInt)
+    else 
+        printc(STDOUT "A")
+    end
+    printc(STDOUT " ")
+
+    int i 0
+    bool length __pkt->AdditionalPlayerCardCount
+    ptr __cards __pkt->AdditionalPlayerCards
+    while(i<length)
+        byte @__cards
+        displayInt byte
+        if(displayInt != 1)
+            printu(STDOUT displayInt)
+        else 
+            printc(STDOUT "A")
+        end
+        printc(STDOUT " ")
+        __cards++
+        i++
+    end
+    printc(STDOUT 10)
+
+    static string prompt2 "The dealer's cards were: "
+    prints(STDOUT prompt2)
+
+    uint displayInt 0
+    bool byte __pkt->dealerCard1
+    displayInt byte
+    if(displayInt != 1)
+        printu(STDOUT displayInt)
+    else 
+        printc(STDOUT "A")
+    end
+    printc(STDOUT " ")
+
+    byte __pkt->dealerCard2
+    displayInt byte
+    if(displayInt != 1)
+        printu(STDOUT displayInt)
+    else 
+        printc(STDOUT "A")
+    end
+    printc(STDOUT " ")
+
+    int i 0
+    bool length __pkt->AdditionalDealerCardCount
+    ptr __cards __pkt->AdditionalDealerCards
+    while(i<length)
+        byte @__cards
+        displayInt byte
+        if(displayInt != 1)
+            printu(STDOUT displayInt)
+        else 
+            printc(STDOUT "A")
+        end
+        printc(STDOUT " ")
+        __cards++
+        i++
+    end
+    printc(STDOUT 10)
+end
+
+proc countCardTotal
+in ptr(Hand) __hand
+begin
+    bool isAce false
+    bool sum 0
+    bool card1 __hand->card1
+    bool card2 __hand->card2
+    if(card1 = 1) 
+        isAce true
+    end
+    if(card2 = 1) 
+        isAce true
+    end
+    sum card1 + card2
+    int i 0
+    bool byte
+    ptr __cards __hand->additionalCards
+    bool length __hand->additionalCardCount
+    while(i<length)
+        byte @__cards
+        sum byte + sum
+        if(byte = 1)
+            isAce true
+        end
+        __cards++
+        i++
+    end
+    if(isAce)
+        bool predictedsum sum + 10
+        if(predictedsum <= 21)
+            sum predictedsum
+        end
+    end
+    __hand->cardTotal sum
+end
+
+proc addCardToPlayerHand
+in ptr(PokerTable) __pkt
+in bool card
+begin
+    bool index 0
+    index __pkt->AdditionalPlayerCardCount
+    ptr arr __pkt->AdditionalPlayerCards
+
+    arr arr + index
+    @arr card
+
+    bool byte index + 1
+    __pkt->AdditionalPlayerCardCount byte
+    countCardTotal(__pkt)
+end
+
+proc addCardToDealerHand
+in ptr(PokerTable) __pkt
+in bool card
+begin
+    bool index 0
+    index __pkt->AdditionalDealerCardCount
+    ptr arr __pkt->AdditionalDealerCards
+
+    arr arr + index
+    @arr card
+    
+    bool byte index + 1
+    __pkt->AdditionalDealerCardCount byte
+    arr __pkt
+    arr arr + 12
+    countCardTotal(arr)
+end
+
+
+struct Deck
+begin
+    ptr cards
+end
+
+proc Deck::pullcard
+out bool card 
+begin
+    ptr(Deck) __self self
+    ptr __cards __self->cards
+    card @__cards
+    while(!card)
+        __cards++
+        card @__cards
+    end
+    bool byte 0
+    @__cards byte
+    ptr buffer
+end
+
+proc Deck::print
+begin
+    ptr(Deck) __self self
+    ptr __cards __self->cards
+    int i 0
+    while(i<52)
+        char c @__cards
+        c c + 48
+        printc(STDOUT c)
+        __cards++
+        i++
+        printc(STDOUT " ")
+    end
+    printc(STDOUT 10)
+end
+
+proc shuffle
+in ptr(Deck) __deck
+begin
+    ptr arr __deck->cards
+    string firstHalf[26]
+    string secondHalf[26]
+    ptr __firstHalf &firstHalf
+    ptr __secondHalf &secondHalf
+
+    ptr src1 arr
+    ptr src2 arr+26
+    char c @src1
+    char d @src2
+    int i 0
+    while(i<26)
+        @__firstHalf c
+        src1++
+        __firstHalf++
+        c @src1
+        @__secondHalf d
+        src2++
+        __secondHalf++
+        d @src2
+        i++
+    end
+    __firstHalf &firstHalf
+    __secondHalf &secondHalf
+    
+    bool byte 0
+    bool tr 0
+    i 0
+    while(i<26)
+        tr coinflip()
+        if(tr)
+            byte @__firstHalf
+            @arr byte
+            arr++
+            __firstHalf++
+            byte @__secondHalf
+            @arr byte
+            arr++
+            __secondHalf++
+            i++
+        else
+            byte @__secondHalf
+            @arr byte
+            arr++
+            __secondHalf++
+            i++
+            byte @__firstHalf
+            @arr byte
+            arr++
+            __firstHalf++
+        end
+    end
+end
+
+proc initDeck
+begin 
+    static Deck deck
+    static string cards[52]
+    deck.cards &cards
+    ptr arr deck.cards
+    bool byte 1
+    int i 0
+    while(i<4)
+        byte 1
+        @arr byte 
+        arr++
+
+        byte 2
+        @arr byte 
+        arr++
+        
+        byte 3
+        @arr byte 
+        arr++
+
+        byte 4
+        @arr byte 
+        arr++
+
+        byte 5
+        @arr byte 
+        arr++
+
+        byte 6
+        @arr byte 
+        arr++
+
+        byte 7
+        @arr byte 
+        arr++
+
+        byte 8
+        @arr byte 
+        arr++
+
+        byte 9
+        @arr byte 
+        arr++
+
+        byte 10
+        @arr byte 
+        arr++
+
+        byte 10
+        @arr byte 
+        arr++
+
+        byte 10
+        @arr byte 
+        arr++
+
+        byte 10
+        @arr byte 
+        arr++
+        i++
+    end
+end
+
+proc initTable
+in ptr(PokerTable) __pkt
+begin 
+    global initDeck::deck
+    initDeck()
+    uint i rand_uint_range(100, 300) #broken
+    while(i)
+        shuffle(deck)
+        i--
+    end
+
+    static string playercards[10]
+    ptr anonptr &playercards
+    __pkt->AdditionalPlayerCards anonptr
+
+    static string dealercards[10]
+    anonptr &dealercards
+    __pkt->AdditionalDealerCards anonptr
+
+    bool card 0
+    bool byte 0
+
+    __pkt->AdditionalPlayerCardCount card
+    __pkt->AdditionalDealerCardCount card
+
+    card deck.pullcard()
+    __pkt->playerCard1 card
+
+    card deck.pullcard()
+    __pkt->playerCard2 card
+
+    ptr arr __pkt
+    countCardTotal(arr)
+
+
+    card deck.pullcard()
+    __pkt->dealerCard1 card
+
+    card deck.pullcard()
+    __pkt->dealerCard2 card
+
+    arr __pkt
+    arr arr + 12
+    countCardTotal(arr)
+end
+
+proc main
+begin
+    global initDeck::deck
+    __rand_scope()
+
+    PokerTable pkt
+    ptr(PokerTable) __pkt &pkt
+    initTable(__pkt)
+    int x 0
+    uint i 0
+
+    # situation 
+    static string prompt1 "Your cards are: "
+    static string prompt2 " and "
+    prints(STDOUT prompt1)
+    x pkt.playerCard1
+    printu(STDOUT x)
+    prints(STDOUT prompt2)
+    x pkt.playerCard2
+    printu(STDOUT x)
+    printc(STDOUT 10)
+    static string prompt3 "The dealer has 2 cards. One of them is a "
+    x pkt.dealerCard1
+    prints(STDOUT prompt3)
+    printu(STDOUT x)
+    printc(STDOUT 10)
+
+    bool gameNotOver true
+    while(gameNotOver)
+        # hit or stand
+        static string prompt4 "Do you 'hit' or 'stand'? "
+        prints(STDOUT prompt4)
+        static string buffer[30]
+        ptr __buffer &buffer
+        uint strLength readf(STDOUT buffer 30)
+        strLength--
+        __buffer __buffer + strLength
+        @__buffer 0
+
+        static string hit "hit"
+        static string stand "stand"
+
+        bool eqToHit strcmp(buffer hit)
+        bool eqToStand strcmp(buffer stand)
+
+        static string hitprompt "you hit and got a "
+        static string standprompt "you stood\n"
+
+        if(eqToHit)
+            prints(STDOUT hitprompt)
+            # get random card value
+            bool card deck.pullcard()
+            addCardToPlayerHand(__pkt card)
+            i card
+            if(i = 1)
+                printc(STDOUT "A")
+            else 
+                printu(STDOUT i)
+            end
+            printc(STDOUT 10)
+        end
+        if(eqToStand)
+            prints(STDOUT standprompt)
+            gameNotOver false
+            # end game
+        end
+
+        bool playerCardTotal pkt.playerCardTotal
+        if(playerCardTotal >= 21)
+            gameNotOver false
+        end
+    end
+
+    bool dealerCardTotal pkt.dealerCardTotal
+    while(dealerCardTotal < 16)
+        bool card deck.pullcard()
+        addCardToDealerHand(__pkt card)
+        dealerCardTotal pkt.dealerCardTotal
+    end
+
+    # determine winner
+    static string bothbust "You both busted, its a tie.\n"
+    static string youbust "You busted, you lose >:(\n"
+    static string dealerbust "The dealer busted, you win :D\n"
+    static string youwin "You win!\n"
+    static string youlose "You lose :(\n"
+    static string tie "Its a tie :/\n"
+
+    uint pct pkt.playerCardTotal
+    uint dct pkt.dealerCardTotal
+    if(pct>21)
+        if(dct>21)
+            prints(STDOUT bothbust)
+        else
+            prints(STDOUT youbust)
+        end
+    else if(dct>21)
+        prints(STDOUT dealerbust)
+    else if(pct > dct)
+        prints(STDOUT youwin)
+    else if(pct = dct)
+        prints(STDOUT tie)
+    else if(dct > pct)
+        prints(STDOUT youlose)
+    end
+
+    displayHands(__pkt)
+end

@@ -1,0 +1,38 @@
+;;include static <stdlib>
+proc debug_hit
+begin
+    static string hit "hit!\n"
+    prints(STDOUT hit)
+end
+;;include static <crypt/SHA1>
+;;include static <crypt/base64>
+
+
+# developing SHA1 to be used for sockets 
+# [TODO]: develop Base64 Encoding (Like hex but 64 instead of 16, using the ASCII range) translates ascii char 0 (48) to == (61)(61)
+
+proc main 
+begin
+    #static string normalOutput "Pz8="
+    #ptr __normalOutput &normalOutput
+    #uint x @__normalOutput
+    #printhex32(STDOUT x)
+    #printc(STDOUT 10)
+
+    static string buffer[20]
+    static string str "ABCDEFG"
+    base64(str buffer 7 20)
+
+    static string finalResult[20]
+    base64_decode(buffer finalResult 12 20)
+
+    SYS_write(STDOUT finalResult 20)
+    printc(STDOUT 10)
+
+    #static string msg "The quick brown fox jumps over the lazy dog"
+    #static string msg[1] 
+    #ptr __msg &msg
+    #@__msg 0 
+    #SHA1(__msg)
+
+end 

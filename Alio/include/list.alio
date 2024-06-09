@@ -1,0 +1,123 @@
+# ***DOCU*** NAME: List \
+# ***DOCU*** ABRV: list \
+# ***DOCU*** DESC: Gives the list struct for c++ like lists \
+# ***DOCU*** DEPENDS: memory stdlib \
+
+;;ifndef ALIO_LIST
+;;def ALIO_LIST
+
+;;include static <memory>
+;;include static <stdlib>
+
+struct list
+begin
+    ptr data   # data is array of ptrs to objects
+    uint size  # size of buffer 
+    uint object_size
+end
+
+proc list::init
+in uint object_size
+begin
+    char nullterm 0
+    if(object_size < 1)
+        char newline 10
+        string msg "ERROR: invalid object_size for list"
+        ptr __msg &msg
+        prints(STDERR __msg)
+        SYS_exit(1)
+    else
+        ptr(list) __self self
+        uint zero 0
+        long bigzero 0
+        __self->data bigzero
+        __self->size zero 
+        __self->object_size object_size
+    end 
+end
+
+# allocate a new ptr for an object to be written to and return the ptr
+proc list::alloc
+out ptr objectptr
+begin
+    ptr(list) __self self
+    ptr data __self->data
+    uint size __self->size 
+    uint object_size __self->object_size
+    long bigzero 0
+    size size + 8
+
+    uint prot PROT_READ | PROT_WRITE
+    uint flags MAP_PRIVATE | MAP_ANONYMOUS
+    ptr addr mmap(0 size prot flags 0 0)
+
+    if(data != bigzero)
+        uint old_size __self->size 
+        strcpylen(data addr old_size)
+        munmap(data old_size)
+    end
+    data addr
+
+    ptr writeAddr data + size 
+    writeAddr writeAddr - 8
+    addr mmap(0 object_size prot flags 0 0)
+    @writeAddr addr
+    objectptr addr
+
+    __self->data data
+    __self->size size
+end
+
+proc list::getIndex
+in uint index
+out ptr outptr
+begin
+    ptr(list) __self self
+    ptr arr __self->data 
+    uint length __self->size
+    index index * 8
+
+    bool outOfBounds0 index >= length
+    bool outOfBounds1 index < 0
+    outOfBounds0 outOfBounds0 | outOfBounds1
+    if(outOfBounds0)
+        char nullterm 0
+        char newline 10
+        string msg "ERROR: index out of bounds in list"
+        ptr __msg &msg
+        prints(STDERR __msg)
+        SYS_exit(1)
+    end
+
+    arr arr + index
+    outptr @arr
+end
+
+# will not properly free if objects are pointing to mapped data aswell
+proc list::free
+begin
+    ptr(list) __self self
+    ptr data __self->data
+    uint size __self->size 
+    uint object_size __self->object_size
+
+    int i 0
+    ptr temptr 0
+    while(i < size)
+        temptr @data
+        munmap(temptr object_size)
+        data data + 8
+        i i + 8
+    end
+
+    data __self->data
+    munmap(data size)
+
+    uint zero 0
+    long bigzero 0
+    __self->data bigzero
+    __self->size zero 
+end
+
+
+;;fi

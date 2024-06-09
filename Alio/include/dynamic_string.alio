@@ -1,0 +1,142 @@
+# ***DOCU*** NAME: Dynamic String \
+# ***DOCU*** ABRV: dynamic_string \
+# ***DOCU*** DESC: Gives the dynamic_string struct for c++ like strings \
+# ***DOCU*** DEPENDS: memory stdlib \
+
+;;ifndef ALIO_DYNAMIC_STRING
+;;def ALIO_DYNAMIC_STRING
+
+;;include static <stdlib>
+;;include static <memory>
+
+struct dynamic_string
+begin
+    ptr data
+    uint length # length of string
+    uint size  # size of buffer 
+    uint size_step # how much the string grows when it goes over the allocated size
+end
+
+# dont forget size_step!!!! It will cause some nasty memory issues
+proc dynamic_string::init
+in uint nsize
+in uint nsize_step
+begin
+    char nullterm 0
+    if(nsize < 1)
+        char newline 10
+        string msg "ERROR: invalid size for dynamic_string"
+        ptr __msg &msg
+        prints(STDERR __msg)
+        SYS_exit(1)
+    else 
+        uint prot PROT_READ | PROT_WRITE
+        uint flags MAP_PRIVATE | MAP_ANONYMOUS
+        ptr addr mmap(0 nsize prot flags 0 0)
+        ptr(dynamic_string) __self self
+        uint zero 0
+        __self->data addr
+        __self->length zero
+        __self->size nsize 
+        __self->size_step nsize_step
+        @addr nullterm
+    end 
+
+    bool contcon nsize_step < 1
+    bool contcontemp nsize_step > 1028
+    contcon conton | contcontemp
+    if(contcon)
+        char newline1 10
+        string msg1 "ERROR: Unreasonable size_step in dynamic_string.init(size size_step)"
+        ptr __msg1 &msg1
+        prints(STDERR __msg1)
+        SYS_exit(1)
+    end
+end
+
+proc dynamic_string::free
+begin
+    uint zero 0
+    long bigzero 0 
+    ptr(dynamic_string) __self self
+    uint nsize __self->size
+    ptr addr __self->data
+    munmap(addr nsize)
+    __self->size zero
+    __self->length zero
+    __self->data bigzero
+end
+
+proc dynamic_string::appendbyte
+in char byte
+begin
+    ptr(dynamic_string) __self self
+    uint newlength __self->length
+    newlength newlength + 2
+    uint size __self->size
+
+    if(newlength > size)
+        uint newsize newlength - 1
+        uint size_step __self->size_step
+        newsize newsize + size_step
+
+        uint prot PROT_READ | PROT_WRITE
+        uint flags MAP_PRIVATE | MAP_ANONYMOUS
+        ptr newaddr mmap(0 newsize prot flags 0 0)
+
+        uint oldsize __self->size
+        ptr oldaddr __self->data
+        strcpy(oldaddr newaddr)
+
+        munmap(oldaddr oldsize)
+
+        __self->data newaddr
+        __self->size newsize
+        newaddr newaddr + newlength
+        @newaddr 0
+    end
+    newlength--
+    __self->length newlength
+
+    ptr writeAddr __self->data
+    writeAddr writeAddr + newlength
+    writeAddr--
+    @writeAddr byte 
+end
+
+proc dynamic_string::getIndex
+in uint index
+out char outc
+begin
+    ptr(dynamic_string) __self self
+    ptr str __self->data 
+    uint length __self->length
+
+    bool outOfBounds0 index >= length
+    bool outOfBounds1 index < 0
+    outOfBounds0 outOfBounds0 | outOfBounds1
+    if(outOfBounds0)
+        char nullterm 0
+        char newline 10
+        string msg "ERROR: index out of bounds in dynamic_string"
+        ptr __msg &msg
+        prints(STDERR __msg)
+        SYS_exit(1)
+    end
+
+    str str + index
+    outc @str
+end
+
+proc dynamic_string::print
+in uint fd
+begin
+    ptr(dynamic_string) __self self
+    ptr str __self->data 
+    long bigzero 0
+    if(str != bigzero) 
+        prints(fd str)
+    end
+end
+
+;;fi
